@@ -117,7 +117,7 @@ curl -X POST https://x402.serendb.com/api/providers/register \
     "name": "My Database",
     "email": "provider@example.com",
     "walletAddress": "0xYourWalletAddress",
-    "connectionString": "postgresql://user:pass@your-db.serendb.com:5432/db"
+    "connectionString": "postgresql://serendb_owner:YOUR_PASSWORD@ep-your-db-123456.c-1.us-east-1.serendb.com/serendb?sslmode=require&channel_binding=require"
   }'
 ```
 
