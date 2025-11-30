@@ -27,9 +27,11 @@ WALLET_PRIVATE_KEY=0x...  # For PrivateKeyWalletProvider
 BASE_RPC_URL=https://mainnet.base.org
 ```
 
-## Usage with Claude Desktop
+## MCP Client Setup
 
-Add to `claude_desktop_config.json`:
+### Claude Desktop
+
+Add the server to `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows: `%APPDATA%\Claude\claude_desktop_config.json`). Restart Claude Desktop after editing so it reloads the MCP registry.
 
 ```json
 {
@@ -39,12 +41,47 @@ Add to `claude_desktop_config.json`:
       "args": ["@serenai/x402-mcp-server"],
       "env": {
         "X402_GATEWAY_URL": "https://x402.serendb.com",
-        "WALLET_PRIVATE_KEY": "0x..."
+        "WALLET_PRIVATE_KEY": "0x...",
+        "BASE_RPC_URL": "https://mainnet.base.org"
       }
     }
   }
 }
 ```
+
+### Claude Code (web & CLI)
+
+Claude Code reads MCP settings from `~/.claude.json`. You can either edit the file directly with the same JSON snippet above or run:
+
+```bash
+claude mcp add x402 -- npx @serenai/x402-mcp-server
+```
+
+Set the same environment variables you defined in the [Configuration](#configuration) section before launching Claude Code. Use `claude mcp list` or the `/mcp` command in chat to confirm the `x402` server is registered.
+
+### Cursor
+
+Cursor supports MCP servers via either the global file `~/.cursor/mcp.json` (applies to every workspace) or a project-scoped `.cursor/mcp.json`. In Cursor go to Settings → Features → Model Context Protocol to manage entries visually, or edit the JSON manually:
+
+```json
+{
+  "mcpServers": {
+    "x402": {
+      "command": "npx",
+      "args": ["@serenai/x402-mcp-server"],
+      "env": {
+        "X402_GATEWAY_URL": "https://x402.serendb.com",
+        "WALLET_PRIVATE_KEY": "0x...",
+        "BASE_RPC_URL": "https://mainnet.base.org"
+      }
+    }
+  }
+}
+```
+
+Restart Cursor (or run `cursor-agent mcp list`) after editing to ensure the IDE reloads the server definition and exposes the `list_providers`, `get_provider_details`, and `pay_for_query` tools.
+
+> **Troubleshooting:** If the client cannot start the server, make sure Node.js is available on your `PATH`, re-check the environment variables from [Configuration](#configuration), and restart the IDE so it reloads MCP settings.
 
 ## MCP Tools
 
