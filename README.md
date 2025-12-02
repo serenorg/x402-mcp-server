@@ -5,7 +5,7 @@ MCP server enabling AI agents to pay for x402-protected API queries using USDC o
 ## Installation
 
 ```bash
-npm install @serenai/x402-mcp-server
+npm install @serendb/x402-mcp-server
 ```
 
 Or clone and build:
@@ -38,7 +38,7 @@ Add the server to `claude_desktop_config.json` (macOS: `~/Library/Application Su
   "mcpServers": {
     "x402": {
       "command": "npx",
-      "args": ["@serenai/x402-mcp-server"],
+      "args": ["@serendb/x402-mcp-server"],
       "env": {
         "X402_GATEWAY_URL": "https://x402.serendb.com",
         "WALLET_PRIVATE_KEY": "0x...",
@@ -54,7 +54,7 @@ Add the server to `claude_desktop_config.json` (macOS: `~/Library/Application Su
 Claude Code reads MCP settings from `~/.claude.json`. You can either edit the file directly with the same JSON snippet above or run:
 
 ```bash
-claude mcp add x402 -- npx @serenai/x402-mcp-server
+claude mcp add x402 -- npx @serendb/x402-mcp-server
 ```
 
 Set the same environment variables you defined in the [Configuration](#configuration) section before launching Claude Code. Use `claude mcp list` or the `/mcp` command in chat to confirm the `x402` server is registered.
@@ -68,7 +68,7 @@ Cursor supports MCP servers via either the global file `~/.cursor/mcp.json` (app
   "mcpServers": {
     "x402": {
       "command": "npx",
-      "args": ["@serenai/x402-mcp-server"],
+      "args": ["@serendb/x402-mcp-server"],
       "env": {
         "X402_GATEWAY_URL": "https://x402.serendb.com",
         "WALLET_PRIVATE_KEY": "0x...",
