@@ -1,26 +1,26 @@
-// ABOUTME: Tests for discovery MCP tools (listProviders, getProviderDetails)
+// ABOUTME: Tests for discovery MCP tools (listPublishers, getPublisherDetails)
 // ABOUTME: Tests input validation, gateway communication, and response formatting
 
 import { jest } from '@jest/globals';
-import { listProviders, ListProvidersInput } from '../../src/tools/listProviders.js';
-import { getProviderDetails, GetProviderDetailsInput } from '../../src/tools/getProviderDetails.js';
+import { listPublishers, ListPublishersInput } from '../../src/tools/listPublishers.js';
+import { getPublisherDetails, GetPublisherDetailsInput } from '../../src/tools/getPublisherDetails.js';
 import type { GatewayClient } from '../../src/gateway/client.js';
 
-describe('listProviders', () => {
+describe('listPublishers', () => {
   let mockGateway: jest.Mocked<GatewayClient>;
 
-  const mockProviders = [
+  const mockPublishers = [
     {
       id: '123e4567-e89b-12d3-a456-426614174000',
-      name: 'Test Provider 1',
-      providerType: 'api' as const,
+      name: 'Test Publisher 1',
+      publisherType: 'api' as const,
       pricePerCall: '0.01',
       categories: ['finance'],
     },
     {
       id: '223e4567-e89b-12d3-a456-426614174001',
-      name: 'Test Provider 2',
-      providerType: 'database' as const,
+      name: 'Test Publisher 2',
+      publisherType: 'database' as const,
       pricePerCall: '0.05',
       categories: ['analytics'],
     },
@@ -28,8 +28,8 @@ describe('listProviders', () => {
 
   beforeEach(() => {
     mockGateway = {
-      listProviders: jest.fn().mockResolvedValue(mockProviders),
-      getProvider: jest.fn(),
+      listPublishers: jest.fn().mockResolvedValue(mockPublishers),
+      getPublisher: jest.fn(),
       proxyRequest: jest.fn(),
       encodePaymentPayload: jest.fn(),
       decodePaymentResponse: jest.fn(),
@@ -37,36 +37,36 @@ describe('listProviders', () => {
   });
 
   describe('without filters', () => {
-    it('should return all providers', async () => {
-      const result = await listProviders({}, mockGateway);
+    it('should return all publishers', async () => {
+      const result = await listPublishers({}, mockGateway);
 
       expect(result.success).toBe(true);
-      expect(result.providers).toHaveLength(2);
-      expect(mockGateway.listProviders).toHaveBeenCalledWith({});
+      expect(result.publishers).toHaveLength(2);
+      expect(mockGateway.listPublishers).toHaveBeenCalledWith({});
     });
   });
 
   describe('with category filter', () => {
     it('should pass category to gateway', async () => {
-      await listProviders({ category: 'finance' }, mockGateway);
+      await listPublishers({ category: 'finance' }, mockGateway);
 
-      expect(mockGateway.listProviders).toHaveBeenCalledWith({ category: 'finance' });
+      expect(mockGateway.listPublishers).toHaveBeenCalledWith({ category: 'finance' });
     });
   });
 
   describe('with type filter', () => {
     it('should pass type to gateway', async () => {
-      await listProviders({ type: 'api' }, mockGateway);
+      await listPublishers({ type: 'api' }, mockGateway);
 
-      expect(mockGateway.listProviders).toHaveBeenCalledWith({ type: 'api' });
+      expect(mockGateway.listPublishers).toHaveBeenCalledWith({ type: 'api' });
     });
   });
 
   describe('with both filters', () => {
     it('should pass both filters to gateway', async () => {
-      await listProviders({ category: 'finance', type: 'database' }, mockGateway);
+      await listPublishers({ category: 'finance', type: 'database' }, mockGateway);
 
-      expect(mockGateway.listProviders).toHaveBeenCalledWith({
+      expect(mockGateway.listPublishers).toHaveBeenCalledWith({
         category: 'finance',
         type: 'database',
       });
@@ -75,34 +75,34 @@ describe('listProviders', () => {
 
   describe('error handling', () => {
     it('should handle gateway error', async () => {
-      mockGateway.listProviders.mockRejectedValue(new Error('Gateway unavailable'));
+      mockGateway.listPublishers.mockRejectedValue(new Error('Gateway unavailable'));
 
-      const result = await listProviders({}, mockGateway);
+      const result = await listPublishers({}, mockGateway);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Gateway');
     });
 
-    it('should return empty array when no providers found', async () => {
-      mockGateway.listProviders.mockResolvedValue([]);
+    it('should return empty array when no publishers found', async () => {
+      mockGateway.listPublishers.mockResolvedValue([]);
 
-      const result = await listProviders({}, mockGateway);
+      const result = await listPublishers({}, mockGateway);
 
       expect(result.success).toBe(true);
-      expect(result.providers).toHaveLength(0);
+      expect(result.publishers).toHaveLength(0);
     });
   });
 });
 
-describe('getProviderDetails', () => {
+describe('getPublisherDetails', () => {
   let mockGateway: jest.Mocked<GatewayClient>;
 
-  const mockProvider = {
+  const mockPublisher = {
     id: '123e4567-e89b-12d3-a456-426614174000',
-    name: 'Test Provider',
+    name: 'Test Publisher',
     resourceName: 'test-resource',
     resourceDescription: 'A test resource for testing',
-    providerType: 'api' as const,
+    publisherType: 'api' as const,
     pricePerCall: '0.01',
     categories: ['finance', 'testing'],
     upstreamApiUrl: 'https://api.example.com',
@@ -110,8 +110,8 @@ describe('getProviderDetails', () => {
 
   beforeEach(() => {
     mockGateway = {
-      listProviders: jest.fn(),
-      getProvider: jest.fn().mockResolvedValue(mockProvider),
+      listPublishers: jest.fn(),
+      getPublisher: jest.fn().mockResolvedValue(mockPublisher),
       proxyRequest: jest.fn(),
       encodePaymentPayload: jest.fn(),
       decodePaymentResponse: jest.fn(),
@@ -119,61 +119,61 @@ describe('getProviderDetails', () => {
   });
 
   describe('input validation', () => {
-    it('should reject missing provider_id', async () => {
-      const result = await getProviderDetails({} as GetProviderDetailsInput, mockGateway);
+    it('should reject missing publisher_id', async () => {
+      const result = await getPublisherDetails({} as GetPublisherDetailsInput, mockGateway);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('provider_id');
+      expect(result.error).toContain('publisher_id');
     });
 
-    it('should reject empty provider_id', async () => {
-      const result = await getProviderDetails({ provider_id: '' }, mockGateway);
+    it('should reject empty publisher_id', async () => {
+      const result = await getPublisherDetails({ publisher_id: '' }, mockGateway);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('provider_id');
+      expect(result.error).toContain('publisher_id');
     });
   });
 
   describe('successful retrieval', () => {
-    it('should return provider details', async () => {
-      const result = await getProviderDetails(
-        { provider_id: '123e4567-e89b-12d3-a456-426614174000' },
+    it('should return publisher details', async () => {
+      const result = await getPublisherDetails(
+        { publisher_id: '123e4567-e89b-12d3-a456-426614174000' },
         mockGateway
       );
 
       expect(result.success).toBe(true);
-      expect(result.provider).toBeDefined();
-      expect(result.provider?.name).toBe('Test Provider');
-      expect(result.provider?.pricePerCall).toBe('0.01');
+      expect(result.publisher).toBeDefined();
+      expect(result.publisher?.name).toBe('Test Publisher');
+      expect(result.publisher?.pricePerCall).toBe('0.01');
     });
 
-    it('should call gateway with correct provider_id', async () => {
-      await getProviderDetails(
-        { provider_id: '123e4567-e89b-12d3-a456-426614174000' },
+    it('should call gateway with correct publisher_id', async () => {
+      await getPublisherDetails(
+        { publisher_id: '123e4567-e89b-12d3-a456-426614174000' },
         mockGateway
       );
 
-      expect(mockGateway.getProvider).toHaveBeenCalledWith(
+      expect(mockGateway.getPublisher).toHaveBeenCalledWith(
         '123e4567-e89b-12d3-a456-426614174000'
       );
     });
   });
 
   describe('error handling', () => {
-    it('should handle provider not found', async () => {
-      mockGateway.getProvider.mockRejectedValue(new Error('Provider not found: unknown-id'));
+    it('should handle publisher not found', async () => {
+      mockGateway.getPublisher.mockRejectedValue(new Error('Publisher not found: unknown-id'));
 
-      const result = await getProviderDetails({ provider_id: 'unknown-id' }, mockGateway);
+      const result = await getPublisherDetails({ publisher_id: 'unknown-id' }, mockGateway);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('not found');
     });
 
     it('should handle gateway error', async () => {
-      mockGateway.getProvider.mockRejectedValue(new Error('Gateway unavailable'));
+      mockGateway.getPublisher.mockRejectedValue(new Error('Gateway unavailable'));
 
-      const result = await getProviderDetails(
-        { provider_id: '123e4567-e89b-12d3-a456-426614174000' },
+      const result = await getPublisherDetails(
+        { publisher_id: '123e4567-e89b-12d3-a456-426614174000' },
         mockGateway
       );
 

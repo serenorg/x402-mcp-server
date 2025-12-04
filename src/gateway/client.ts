@@ -5,8 +5,8 @@ import { config } from '../config/index.js';
 import type {
   PaymentRequirementsResponse,
   PaymentPayload,
-  Provider,
-  ProviderPricingConfig,
+  Publisher,
+  PublisherPricingConfig,
   ProxyRequest,
 } from './types.js';
 
@@ -18,12 +18,12 @@ export class GatewayClient {
   }
 
   /**
-   * List available providers from the catalog
+   * List available publishers from the catalog
    */
-  async listProviders(options?: {
+  async listPublishers(options?: {
     category?: string;
     type?: 'database' | 'api' | 'both';
-  }): Promise<Provider[]> {
+  }): Promise<Publisher[]> {
     const params = new URLSearchParams();
     if (options?.category) params.set('category', options.category);
     if (options?.type) params.set('type', options.type);
@@ -32,7 +32,7 @@ export class GatewayClient {
     const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`Failed to list providers: ${response.status}`);
+      throw new Error(`Failed to list publishers: ${response.status}`);
     }
 
     // Manually parse to ensure robustness against subtle fetch/environment issues
@@ -42,10 +42,10 @@ export class GatewayClient {
 
       // Handle direct array response
       if (Array.isArray(data)) {
-        return data as Provider[];
+        return data as Publisher[];
       }
-      
-      // Handle object-wrapped array response (e.g., { "providers": [...] })
+
+      // Handle object-wrapped array response (e.g., { "publishers": [...] })
       if (data && Array.isArray(data.providers)) {
         return data.providers;
       }
@@ -59,32 +59,32 @@ export class GatewayClient {
   }
 
   /**
-   * Get details for a specific provider
+   * Get details for a specific publisher
    */
-  async getProvider(providerId: string): Promise<Provider> {
-    const response = await fetch(`${this.baseUrl}/api/catalog/${providerId}`);
+  async getPublisher(publisherId: string): Promise<Publisher> {
+    const response = await fetch(`${this.baseUrl}/api/catalog/${publisherId}`);
 
     if (!response.ok) {
-      throw new Error(`Provider not found: ${providerId}`);
+      throw new Error(`Publisher not found: ${publisherId}`);
     }
 
-    return response.json() as Promise<Provider>;
+    return response.json() as Promise<Publisher>;
   }
 
   /**
-   * Get detailed pricing configuration for a specific provider
+   * Get detailed pricing configuration for a specific publisher
    */
-  async getProviderPricing(providerId: string): Promise<ProviderPricingConfig> {
-    const response = await fetch(`${this.baseUrl}/api/providers/${providerId}/pricing`);
+  async getPublisherPricing(publisherId: string): Promise<PublisherPricingConfig> {
+    const response = await fetch(`${this.baseUrl}/api/providers/${publisherId}/pricing`);
 
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error(`Pricing configuration not found for provider: ${providerId}`);
+        throw new Error(`Pricing configuration not found for publisher: ${publisherId}`);
       }
-      throw new Error(`Failed to get pricing for provider ${providerId}: ${response.status}`);
+      throw new Error(`Failed to get pricing for publisher ${publisherId}: ${response.status}`);
     }
 
-    return response.json() as Promise<ProviderPricingConfig>;
+    return response.json() as Promise<PublisherPricingConfig>;
   }
 
   /**
