@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { GatewayClient } from '../../src/gateway/client.js';
 import { PrivateKeyWalletProvider } from '../../src/wallet/privatekey.js';
 import { payForQuery } from '../../src/tools/payForQuery.js';
-import { listProviders } from '../../src/tools/listProviders.js';
+import { listPublishers } from '../../src/tools/listPublishers.js';
 import { UserRejectedError } from '../../src/wallet/types.js';
 
 // Load test configuration
@@ -20,48 +20,48 @@ const runTests = process.env.CI ? describe.skip : describe;
 runTests('x402 MCP Server E2E Tests', () => {
     let walletProvider: PrivateKeyWalletProvider;
     let gatewayClient: GatewayClient;
-    let testProviderId: string;
+    let testPublisherId: string;
 
     beforeAll(async () => {
         // Initialize wallet and gateway
         walletProvider = new PrivateKeyWalletProvider();
         await walletProvider.connect(process.env.WALLET_PRIVATE_KEY);
 
-        // Use manual instance to ensure correct URL from .env.test
-        gatewayClient = new GatewayClient(process.env.X402_GATEWAY_URL);
+        // Use default gateway URL
+        gatewayClient = new GatewayClient();
 
-        // Discover a test provider if not specified
-        if (process.env.TEST_PROVIDER_ID) {
-            testProviderId = process.env.TEST_PROVIDER_ID;
+        // Discover a test publisher if not specified
+        if (process.env.TEST_PUBLISHER_ID) {
+            testPublisherId = process.env.TEST_PUBLISHER_ID;
         } else {
-            const providers = await gatewayClient.listProviders();
-            if (providers.length === 0) {
-                throw new Error('No providers found in gateway catalog');
+            const publishers = await gatewayClient.listPublishers();
+            if (publishers.length === 0) {
+                throw new Error('No publishers found in gateway catalog');
             }
-            // Prefer 'api' type providers for testing
-            const apiProvider = providers.find(p => p.providerType === 'api');
-            if (!apiProvider) {
-                throw new Error('No API type provider found in gateway catalog. Please ensure an API provider is registered for E2E tests.');
+            // Prefer 'api' type publishers for testing
+            const apiPublisher = publishers.find(p => p.publisherType === 'api');
+            if (!apiPublisher) {
+                throw new Error('No API type publisher found in gateway catalog. Please ensure an API publisher is registered for E2E tests.');
             }
-            testProviderId = apiProvider.id;
-            console.log(`Using discovered API provider: ${testProviderId}`);
+            testPublisherId = apiPublisher.id;
+            console.log(`Using discovered API publisher: ${testPublisherId}`);
         }
     });
 
     describe('Happy Path - Full Payment Flow', () => {
         it('should complete full payment flow', async () => {
-            // 1. List providers to verify catalog access
-            const listResult = await listProviders({}, gatewayClient);
+            // 1. List publishers to verify catalog access
+            const listResult = await listPublishers({}, gatewayClient);
             expect(listResult.success).toBe(true);
-            expect(listResult.providers).toBeDefined();
-            expect(listResult.providers!.length).toBeGreaterThan(0);
+            expect(listResult.publishers).toBeDefined();
+            expect(listResult.publishers!.length).toBeGreaterThan(0);
 
-            console.log(`Testing with provider: ${testProviderId}`);
+            console.log(`Testing with publisher: ${testPublisherId}`);
 
             // 2. Execute pay_for_query
             const result = await payForQuery(
                 {
-                    provider_id: testProviderId,
+                    publisher_id: testPublisherId,
                     request: {
                         method: 'GET',
                         path: '/v2/accounting/od/debt_to_penny',
@@ -106,7 +106,7 @@ runTests('x402 MCP Server E2E Tests', () => {
 
             const result = await payForQuery(
                 {
-                    provider_id: testProviderId,
+                    publisher_id: testPublisherId,
                     request: { path: '/v2/accounting/od/debt_to_penny' },
                 },
                 rejectingWallet,
@@ -119,13 +119,13 @@ runTests('x402 MCP Server E2E Tests', () => {
         });
     });
 
-    describe('Provider Not Found', () => {
-        it('should handle unknown provider', async () => {
+    describe('Publisher Not Found', () => {
+        it('should handle unknown publisher', async () => {
             const fakeId = '00000000-0000-0000-0000-000000000000';
 
             const result = await payForQuery(
                 {
-                    provider_id: fakeId,
+                    publisher_id: fakeId,
                     request: { path: '/' },
                 },
                 walletProvider,

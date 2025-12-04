@@ -12,7 +12,7 @@ describe('payForQuery', () => {
   let mockGateway: jest.Mocked<GatewayClient>;
 
   const validInput: PayForQueryInput = {
-    provider_id: '123e4567-e89b-12d3-a456-426614174000',
+    publisher_id: '123e4567-e89b-12d3-a456-426614174000',
     request: {
       method: 'POST',
       path: '/query',
@@ -52,8 +52,8 @@ describe('payForQuery', () => {
     };
 
     mockGateway = {
-      listProviders: jest.fn(),
-      getProvider: jest.fn(),
+      listPublishers: jest.fn(),
+      getPublisher: jest.fn(),
       proxyRequest: jest.fn(),
       encodePaymentPayload: jest.fn().mockReturnValue('base64payload'),
       decodePaymentResponse: jest.fn().mockReturnValue({ txHash: '0xdefault', success: true }),
@@ -61,19 +61,19 @@ describe('payForQuery', () => {
   });
 
   describe('input validation', () => {
-    it('should reject missing provider_id', async () => {
+    it('should reject missing publisher_id', async () => {
       const result = await payForQuery(
         { request: { path: '/query' } } as PayForQueryInput,
         mockWallet,
         mockGateway
       );
       expect(result.success).toBe(false);
-      expect(result.error).toContain('provider_id');
+      expect(result.error).toContain('publisher_id');
     });
 
     it('should reject missing request', async () => {
       const result = await payForQuery(
-        { provider_id: 'test-id' } as PayForQueryInput,
+        { publisher_id: 'test-id' } as PayForQueryInput,
         mockWallet,
         mockGateway
       );
@@ -83,7 +83,7 @@ describe('payForQuery', () => {
 
     it('should reject missing request.path', async () => {
       const result = await payForQuery(
-        { provider_id: 'test-id', request: {} } as PayForQueryInput,
+        { publisher_id: 'test-id', request: {} } as PayForQueryInput,
         mockWallet,
         mockGateway
       );
@@ -103,7 +103,7 @@ describe('payForQuery', () => {
       });
 
       const result = await payForQuery(
-        { provider_id: 'test-id', request: { path: '/query' } },
+        { publisher_id: 'test-id', request: { path: '/query' } },
         mockWallet,
         mockGateway
       );
@@ -253,7 +253,7 @@ describe('payForQuery', () => {
       });
 
       await payForQuery(
-        { provider_id: 'test', request: { path: '/data' } },
+        { publisher_id: 'test', request: { path: '/data' } },
         mockWallet,
         mockGateway
       );

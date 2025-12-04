@@ -7,9 +7,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { config } from './config/index.js';
 import { payForQuery } from './tools/payForQuery.js';
-import { listProviders } from './tools/listProviders.js';
-import { getProviderDetails } from './tools/getProviderDetails.js';
-import { getProviderPricingDetails } from './tools/getProviderPricingDetails.js';
+import { listPublishers } from './tools/listPublishers.js';
+import { getPublisherDetails } from './tools/getPublisherDetails.js';
+import { getPublisherPricingDetails } from './tools/getPublisherPricingDetails.js';
 import { GatewayClient } from './gateway/client.js';
 import { PrivateKeyWalletProvider } from './wallet/privatekey.js';
 import type { WalletProvider } from './wallet/types.js';
@@ -54,9 +54,9 @@ async function getWalletProvider(): Promise<WalletProvider> {
 server.registerTool(
   'pay_for_query',
   {
-    description: 'Execute a paid query against an x402-protected API provider. Makes a request, handles the 402 payment flow, and returns the result.',
+    description: 'Execute a paid query against an x402-protected data publisher. Makes a request, handles the 402 payment flow, and returns the result.',
     inputSchema: z.object({
-      provider_id: z.string().describe('UUID of the API provider'),
+      publisher_id: z.string().describe('UUID of the data publisher'),
       request: z.object({
         method: z.enum(['GET', 'POST', 'PUT', 'DELETE']).optional().describe('HTTP method (defaults to GET)'),
         path: z.string().describe('Request path'),
@@ -115,19 +115,19 @@ server.registerTool(
   }
 );
 
-// Register list_providers tool
+// Register list_publishers tool
 server.registerTool(
-  'list_providers',
+  'list_publishers',
   {
-    description: 'List available x402-protected API providers from the gateway catalog. Optionally filter by category or provider type.',
+    description: 'List available x402-protected data publishers from the gateway catalog. Optionally filter by category or publisher type.',
     inputSchema: z.object({
       category: z.string().optional().describe('Filter by category (e.g., "finance", "analytics")'),
-      type: z.enum(['database', 'api', 'both']).optional().describe('Filter by provider type'),
+      type: z.enum(['database', 'api', 'both']).optional().describe('Filter by publisher type'),
     }),
   },
   async (args) => {
     try {
-      const result = await listProviders(args, gatewayClient);
+      const result = await listPublishers(args, gatewayClient);
 
       if (result.success) {
         return {
@@ -136,8 +136,8 @@ server.registerTool(
               type: 'text' as const,
               text: JSON.stringify({
                 success: true,
-                providers: result.providers,
-                count: result.providers?.length ?? 0,
+                publishers: result.publishers,
+                count: result.publishers?.length ?? 0,
               }, null, 2),
             },
           ],
@@ -173,18 +173,18 @@ server.registerTool(
   }
 );
 
-// Register get_provider_details tool
+// Register get_publisher_details tool
 server.registerTool(
-  'get_provider_details',
+  'get_publisher_details',
   {
-    description: 'Get detailed information about a specific x402-protected API provider including pricing, endpoints, and capabilities.',
+    description: 'Get detailed information about a specific x402-protected data publisher including pricing, endpoints, and capabilities.',
     inputSchema: z.object({
-      provider_id: z.string().describe('UUID of the API provider'),
+      publisher_id: z.string().describe('UUID of the data publisher'),
     }),
   },
   async (args) => {
     try {
-      const result = await getProviderDetails(args, gatewayClient);
+      const result = await getPublisherDetails(args, gatewayClient);
 
       if (result.success) {
         return {
@@ -193,7 +193,7 @@ server.registerTool(
               type: 'text' as const,
               text: JSON.stringify({
                 success: true,
-                provider: result.provider,
+                publisher: result.publisher,
               }, null, 2),
             },
           ],
@@ -229,18 +229,18 @@ server.registerTool(
   }
 );
 
-// Register get_provider_pricing_details tool
+// Register get_publisher_pricing_details tool
 server.registerTool(
-  'get_provider_pricing_details',
+  'get_publisher_pricing_details',
   {
-    description: 'Get detailed pricing configuration (basePricePer1000Rows, markupMultiplier) for a specific x402-protected API provider.',
+    description: 'Get detailed pricing configuration (basePricePer1000Rows, markupMultiplier) for a specific x402-protected data publisher.',
     inputSchema: z.object({
-      provider_id: z.string().describe('UUID of the API provider'),
+      publisher_id: z.string().describe('UUID of the data publisher'),
     }),
   },
   async (args) => {
     try {
-      const result = await getProviderPricingDetails(args, gatewayClient);
+      const result = await getPublisherPricingDetails(args, gatewayClient);
 
       if (result.success) {
         return {

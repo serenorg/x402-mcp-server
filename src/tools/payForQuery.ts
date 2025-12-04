@@ -9,7 +9,7 @@ import { buildDomain, buildAuthorizationMessage, buildTypedData } from '../signi
 import { formatUsdc } from '../utils/usdc.js';
 
 export interface PayForQueryInput {
-  provider_id: string;
+  publisher_id: string;
   request: {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
     path: string;
@@ -27,7 +27,7 @@ export interface PayForQueryOutput {
 }
 
 /**
- * Execute a paid query against an x402-protected API provider
+ * Execute a paid query against an x402-protected data publisher
  */
 export async function payForQuery(
   input: PayForQueryInput,
@@ -51,7 +51,7 @@ export async function payForQuery(
 
     // Make initial request to get payment requirements
     const initialResult = await gateway.proxyRequest({
-      providerId: input.provider_id,
+      publisherId: input.publisher_id,
       agentWallet,
       request: {
         method: input.request.method ?? 'GET',
@@ -85,7 +85,7 @@ export async function payForQuery(
     // Retry request with payment
     const paidResult = await gateway.proxyRequest(
       {
-        providerId: input.provider_id,
+        publisherId: input.publisher_id,
         agentWallet,
         request: {
           method: input.request.method ?? 'GET',
@@ -130,8 +130,8 @@ export async function payForQuery(
 }
 
 function validateInput(input: PayForQueryInput): string | null {
-  if (!input.provider_id) {
-    return 'provider_id is required';
+  if (!input.publisher_id) {
+    return 'publisher_id is required';
   }
   if (!input.request) {
     return 'request is required';

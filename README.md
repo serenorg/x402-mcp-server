@@ -79,7 +79,7 @@ Cursor supports MCP servers via either the global file `~/.cursor/mcp.json` (app
 }
 ```
 
-Restart Cursor (or run `cursor-agent mcp list`) after editing to ensure the IDE reloads the server definition and exposes the `list_providers`, `get_provider_details`, and `pay_for_query` tools.
+Restart Cursor (or run `cursor-agent mcp list`) after editing to ensure the IDE reloads the server definition and exposes the `list_publishers`, `get_publisher_details`, and `pay_for_query` tools.
 
 > **Troubleshooting:** If the client cannot start the server, make sure Node.js is available on your `PATH`, re-check the environment variables from [Configuration](#configuration), and restart the IDE so it reloads MCP settings.
 
@@ -89,20 +89,28 @@ The x402 MCP server works with any tool that implements the Model Context Protoc
 
 ## MCP Tools
 
-### `list_providers`
+### `list_publishers`
 
-Lists available x402-protected API providers.
+Lists available x402-protected data publishers.
 
 ```json
 { "category": "finance", "type": "api" }
 ```
 
-### `get_provider_details`
+### `get_publisher_details`
 
-Gets details for a specific provider.
+Gets details for a specific publisher.
 
 ```json
-{ "provider_id": "uuid-here" }
+{ "publisher_id": "uuid-here" }
+```
+
+### `get_publisher_pricing_details`
+
+Gets pricing configuration for a specific publisher.
+
+```json
+{ "publisher_id": "uuid-here" }
 ```
 
 ### `pay_for_query`
@@ -111,7 +119,7 @@ Executes a paid API query with automatic USDC payment.
 
 ```json
 {
-  "provider_id": "uuid-here",
+  "publisher_id": "uuid-here",
   "request": {
     "method": "GET",
     "path": "/v1/data/endpoint",
@@ -138,7 +146,7 @@ pnpm build       # Build for production
 
 ---
 
-## Becoming an x402 Provider
+## Becoming an x402 Publisher
 
 To monetize your database with pay-per-query access:
 
@@ -149,25 +157,25 @@ Create an account at [console.serendb.com](https://console.serendb.com) to get:
 - A managed PostgreSQL database connection string
 - API keys for the x402 gateway
 
-### 2. Register Your Provider
+### 2. Register Your Publisher
 
 ```bash
-curl -X POST https://x402.serendb.com/api/providers/register \
+curl -X POST https://x402.serendb.com/api/publishers/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Database",
-    "email": "provider@example.com",
+    "email": "publisher@example.com",
     "walletAddress": "0xYourWalletAddress",
     "connectionString": "postgresql://serendb_owner:YOUR_PASSWORD@ep-your-db-123456.c-1.us-east-1.serendb.com/serendb?sslmode=require&channel_binding=require"
   }'
 ```
 
-Returns your `providerId` and `apiKey`.
+Returns your `publisherId` and `apiKey`.
 
 ### 3. Configure Pricing
 
 ```bash
-curl -X POST https://x402.serendb.com/api/providers/{providerId}/pricing \
+curl -X POST https://x402.serendb.com/api/publishers/{publisherId}/pricing \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key" \
   -d '{

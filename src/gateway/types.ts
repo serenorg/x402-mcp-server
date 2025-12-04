@@ -48,19 +48,19 @@ export interface PaymentPayload {
   };
 }
 
-export interface Provider {
+export interface Publisher {
   id: string;
   name: string;
   resourceName?: string;
   resourceDescription?: string;
-  providerType: 'database' | 'api' | 'both';
+  publisherType: 'database' | 'api' | 'both';
   pricePerCall?: string;
   categories?: string[];
   upstreamApiUrl?: string;
 }
 
 export interface ProxyRequest {
-  providerId: string;
+  publisherId: string;
   agentWallet: string;
   request: {
     method: string;
@@ -70,9 +70,9 @@ export interface ProxyRequest {
   };
 }
 
-export interface ProviderPricingConfig {
+export interface PublisherPricingConfig {
   id: string;
-  providerId: string;
+  providerId: string;  // Gateway API field name
   basePricePer1000Rows: number;
   markupMultiplier: number;
   createdAt: string;

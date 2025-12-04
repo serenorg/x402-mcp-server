@@ -1,27 +1,27 @@
-// ABOUTME: MCP tool to list available x402-protected API providers
-// ABOUTME: Wraps GatewayClient.listProviders() with optional filtering
+// ABOUTME: MCP tool to list available x402-protected data publishers
+// ABOUTME: Wraps GatewayClient.listPublishers() with optional filtering
 
 import type { GatewayClient } from '../gateway/client.js';
-import type { Provider } from '../gateway/types.js';
+import type { Publisher } from '../gateway/types.js';
 
-export interface ListProvidersInput {
+export interface ListPublishersInput {
   category?: string;
   type?: 'database' | 'api' | 'both';
 }
 
-export interface ListProvidersOutput {
+export interface ListPublishersOutput {
   success: boolean;
-  providers?: Provider[];
+  publishers?: Publisher[];
   error?: string;
 }
 
 /**
- * List available x402-protected API providers from the gateway catalog
+ * List available x402-protected data publishers from the gateway catalog
  */
-export async function listProviders(
-  input: ListProvidersInput,
+export async function listPublishers(
+  input: ListPublishersInput,
   gateway: GatewayClient
-): Promise<ListProvidersOutput> {
+): Promise<ListPublishersOutput> {
   try {
     const filters: { category?: string; type?: 'database' | 'api' | 'both' } = {};
 
@@ -32,11 +32,11 @@ export async function listProviders(
       filters.type = input.type;
     }
 
-    const providers = await gateway.listProviders(filters);
+    const publishers = await gateway.listPublishers(filters);
 
     return {
       success: true,
-      providers,
+      publishers,
     };
   } catch (error) {
     return {
