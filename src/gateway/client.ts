@@ -8,6 +8,8 @@ import type {
   Publisher,
   PublisherPricingConfig,
   ProxyRequest,
+  QueryRequest,
+  QueryResult,
 } from './types.js';
 
 export class GatewayClient {
@@ -133,6 +135,57 @@ export class GatewayClient {
     }
 
     const data = await response.json();
+    const paymentResponse = response.headers.get('X-PAYMENT-RESPONSE') ?? undefined;
+
+    return { status: 200, data, paymentResponse };
+  }
+
+  /**
+   * Execute a database query (may return 402)
+   */
+  async queryDatabase(
+    request: QueryRequest,
+    paymentPayload?: PaymentPayload
+  ): Promise<{
+    status: number;
+    data?: QueryResult;
+    paymentRequired?: PaymentRequirementsResponse;
+    paymentResponse?: string;
+  }> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (paymentPayload) {
+      headers['X-PAYMENT'] = this.encodePaymentPayload(paymentPayload);
+    }
+
+    const url = `${this.baseUrl}/api/query`;
+    const body = JSON.stringify(request);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+    });
+
+    if (response.status === 402) {
+      const paymentRequired = await response.json() as PaymentRequirementsResponse;
+      return { status: 402, paymentRequired };
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorBody: { error?: string };
+      try {
+        errorBody = JSON.parse(errorText);
+      } catch {
+        errorBody = { error: errorText || 'Unknown error' };
+      }
+      throw new Error(`Query request failed: ${errorBody.error ?? response.status}`);
+    }
+
+    const data = await response.json() as QueryResult;
     const paymentResponse = response.headers.get('X-PAYMENT-RESPONSE') ?? undefined;
 
     return { status: 200, data, paymentResponse };

@@ -78,3 +78,23 @@ export interface PublisherPricingConfig {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface QueryRequest {
+  publisherId: string;
+  agentWallet: string;
+  sql: string;
+}
+
+export interface QueryResult {
+  rows: unknown[];
+  rowCount: number;
+  estimatedCost: string;
+  actualCost: string;
+  executionTime: number;
+  paymentRequestId?: string;
+  settlement?: {
+    payer: string;
+    transaction: string;
+    network: string;
+  };
+}
