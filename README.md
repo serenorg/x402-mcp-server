@@ -115,7 +115,7 @@ Gets pricing configuration for a specific publisher.
 
 ### `pay_for_query`
 
-Executes a paid API query with automatic USDC payment.
+Executes a paid API query with automatic USDC payment. Use this for `api` type publishers.
 
 ```json
 {
@@ -127,6 +127,32 @@ Executes a paid API query with automatic USDC payment.
   }
 }
 ```
+
+### `query_database`
+
+Executes a paid SQL query against a database publisher with automatic USDC payment. Use this for `database` type publishers.
+
+```json
+{
+  "publisher_id": "uuid-here",
+  "sql": "SELECT * FROM users LIMIT 10"
+}
+```
+
+Returns:
+```json
+{
+  "success": true,
+  "rows": [...],
+  "rowCount": 10,
+  "estimatedCost": "0.025",
+  "actualCost": "0.020",
+  "executionTime": 45,
+  "txHash": "0x..."
+}
+```
+
+**Note:** Only `SELECT` queries are allowed. Pricing is based on rows returned (basePricePer1000Rows × rows × markupMultiplier).
 
 ## Development
 

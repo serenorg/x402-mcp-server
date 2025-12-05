@@ -7,6 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { config } from './config/index.js';
 import { payForQuery } from './tools/payForQuery.js';
+import { queryDatabase } from './tools/queryDatabase.js';
 import { listPublishers } from './tools/listPublishers.js';
 import { getPublisherDetails } from './tools/getPublisherDetails.js';
 import { getPublisherPricingDetails } from './tools/getPublisherPricingDetails.js';
@@ -79,6 +80,69 @@ server.registerTool(
                 success: true,
                 data: result.data,
                 cost: result.cost,
+                txHash: result.txHash,
+              }, null, 2),
+            },
+          ],
+        };
+      } else {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: false,
+                error: result.error,
+              }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            }, null, 2),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Register query_database tool
+server.registerTool(
+  'query_database',
+  {
+    description: 'Execute a paid SQL query against a database-type x402-protected publisher. Makes a query request, handles the 402 payment flow with row-based pricing, and returns the results.',
+    inputSchema: z.object({
+      publisher_id: z.string().describe('UUID of the database publisher'),
+      sql: z.string().describe('SQL SELECT query to execute'),
+    }),
+  },
+  async (args) => {
+    try {
+      const wallet = await getWalletProvider();
+      const result = await queryDatabase(args, wallet, gatewayClient);
+
+      if (result.success) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: true,
+                rows: result.rows,
+                rowCount: result.rowCount,
+                estimatedCost: result.estimatedCost,
+                actualCost: result.actualCost,
+                executionTime: result.executionTime,
                 txHash: result.txHash,
               }, null, 2),
             },
