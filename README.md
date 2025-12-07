@@ -7,17 +7,23 @@ MCP server enabling AI agents to pay for x402-protected database queries and API
 
 ## Installation
 
+### Quick run (recommended)
+
+Use `npx` to pull the published server package on demand—no git clone or global install required as long as Node.js and npm are on your `PATH`.
+
 ```bash
-npm install @serendb/x402-mcp-server
+X402_GATEWAY_URL=https://x402.serendb.com \
+WALLET_PRIVATE_KEY=0xYOUR_KEY \
+BASE_RPC_URL=https://mainnet.base.org \
+npx @serendb/x402-mcp-server
 ```
 
-Or clone and build:
+### Local install (optional)
+
+If you prefer to pin a specific version locally (for air‑gapped environments or repeated offline runs), install it once and invoke the binary from `node_modules/.bin`:
 
 ```bash
-git clone https://github.com/serenorg/x402-mcp-server.git
-cd x402-mcp-server
-pnpm install
-pnpm build
+npm install @serendb/x402-mcp-server
 ```
 
 ## Configuration
@@ -28,6 +34,15 @@ Create `.env` file:
 X402_GATEWAY_URL=https://x402.serendb.com
 WALLET_PRIVATE_KEY=0x...  # For PrivateKeyWalletProvider
 BASE_RPC_URL=https://mainnet.base.org
+```
+
+When using the quick `npx` flow you can also export or prefix these variables inline instead of maintaining a `.env` file, for example:
+
+```bash
+export X402_GATEWAY_URL=https://x402.serendb.com
+export WALLET_PRIVATE_KEY=0x...
+export BASE_RPC_URL=https://mainnet.base.org
+npx @serendb/x402-mcp-server
 ```
 
 ## MCP Client Setup
@@ -52,6 +67,8 @@ Add the server to `claude_desktop_config.json` (macOS: `~/Library/Application Su
 }
 ```
 
+`npx` will fetch the published server automatically, so you only need Node.js and npm installed—no repo checkout or manual build.
+
 ### Claude Code (web & CLI)
 
 Claude Code reads MCP settings from `~/.claude.json`. You can either edit the file directly with the same JSON snippet above or run:
@@ -61,6 +78,8 @@ claude mcp add x402 -- npx @serendb/x402-mcp-server
 ```
 
 Set the same environment variables you defined in the [Configuration](#configuration) section before launching Claude Code. Use `claude mcp list` or the `/mcp` command in chat to confirm the `x402` server is registered.
+
+Because this command uses `npx`, Claude Code will always run the latest published package unless you pin a version (e.g., `npx @serendb/x402-mcp-server@1.2.3`).
 
 ### Cursor
 
@@ -84,11 +103,15 @@ Cursor supports MCP servers via either the global file `~/.cursor/mcp.json` (app
 
 Restart Cursor (or run `cursor-agent mcp list`) after editing to ensure the IDE reloads the server definition and exposes the `list_publishers`, `get_publisher_details`, `pay_for_query`, and `query_database` tools.
 
-> **Troubleshooting:** If the client cannot start the server, make sure Node.js is available on your `PATH`, re-check the environment variables from [Configuration](#configuration), and restart the IDE so it reloads MCP settings.
+The embedded `npx` command means Cursor never needs a checked-out copy of this repository; it downloads the package each time (or from the npm cache) as long as Node.js/npm are available.
+
+> **Troubleshooting:** If the client cannot start the server, make sure Node.js is available on your `PATH`, re-check the environment variables from [Configuration](#configuration), and restart the IDE so it reloads MCP settings. If `npx` reports it cannot find `@serendb/x402-mcp-server`, upgrade npm (e.g., `npm install -g npm`) or clear the local cache with `npx cache clear` and retry.
 
 ### Other compatible clients
 
 The x402 MCP server works with any tool that implements the Model Context Protocol. Popular options include Continue (VS Code / JetBrains), Cline (VS Code), CodeGPT, Windsurf, Zed, VS Code MCP, and Sourcegraph Cody. For details on configuring those editors, see the [official MCP client matrix](https://modelcontextprotocol.info/docs/clients/); the JSON snippets above can usually be dropped into each client’s MCP configuration file with the same `command`, `args`, and environment variables.
+
+As with the other clients, pointing the entry at `npx @serendb/x402-mcp-server` keeps installation lightweight—editors invoke the published package directly without requiring contributors to install this repo globally.
 
 ## MCP Tools
 
@@ -159,8 +182,15 @@ Returns:
 
 ## Development
 
+To modify the server or run the test suite locally, clone the repo and install dependencies:
+
 ```bash
+git clone https://github.com/serenorg/x402-mcp-server.git
+cd x402-mcp-server
 pnpm install
+```
+
+```bash
 pnpm test        # Run tests in watch mode
 pnpm test:ci     # Run tests with coverage
 pnpm test:e2e    # Run E2E tests (requires live gateway)
