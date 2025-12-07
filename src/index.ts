@@ -14,6 +14,7 @@ import { getPublisherPricingDetails } from './tools/getPublisherPricingDetails.j
 import { GatewayClient } from './gateway/client.js';
 import { PrivateKeyWalletProvider } from './wallet/privatekey.js';
 import type { WalletProvider } from './wallet/types.js';
+import { SerenService } from './services/serenService.js';
 
 const server = new McpServer(
   {
@@ -29,6 +30,11 @@ const server = new McpServer(
 
 // Initialize gateway client (singleton)
 const gatewayClient = new GatewayClient();
+
+// Initialize shared service for SQL queries (used by both MCP tools and Web API)
+const serenService = process.env.WALLET_PRIVATE_KEY && config.X402_GATEWAY_URL
+  ? new SerenService(process.env.WALLET_PRIVATE_KEY, config.X402_GATEWAY_URL)
+  : null;
 
 // Wallet provider will be initialized on first use
 let walletProvider: WalletProvider | null = null;
@@ -128,6 +134,47 @@ server.registerTool(
   },
   async (args) => {
     try {
+      // Use shared service if available, otherwise fall back to original implementation
+      if (serenService) {
+        const result = await serenService.executeQuery({
+          sql: args.sql,
+          providerId: args.publisher_id,
+        });
+
+        if (result.success) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify({
+                  success: true,
+                  rows: result.rows,
+                  rowCount: result.rowCount,
+                  estimatedCost: result.estimatedCost,
+                  actualCost: result.actualCost,
+                  executionTime: result.executionTime,
+                  txHash: result.txHash,
+                }, null, 2),
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: JSON.stringify({
+                  success: false,
+                  error: result.error,
+                }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+      }
+
+      // Fallback to original implementation
       const wallet = await getWalletProvider();
       const result = await queryDatabase(args, wallet, gatewayClient);
 
