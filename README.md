@@ -15,6 +15,7 @@ Use `npx` to pull the published server package on demand—no git clone or globa
 X402_GATEWAY_URL=https://x402.serendb.com \
 WALLET_PRIVATE_KEY=0xYOUR_KEY \
 BASE_RPC_URL=https://mainnet.base.org \
+SERENDB_CONNECTION_STRING=postgresql://serendb_owner:<password>@ep-<endpoint>.serendb.com/serendb?sslmode=require&channel_binding=require \
 npx @serendb/x402-mcp-server
 ```
 
