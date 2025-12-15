@@ -65,7 +65,6 @@ runTests('x402 MCP Server E2E Tests', () => {
                     request: {
                         method: 'GET',
                         path: '/v2/accounting/od/debt_to_penny',
-                        headers: { 'User-Agent': 'x402-Test' }
                     },
                 },
                 walletProvider,
