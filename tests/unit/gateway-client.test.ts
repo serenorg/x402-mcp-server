@@ -1,11 +1,22 @@
 // ABOUTME: Tests for the gateway HTTP client
 // ABOUTME: Tests encoding/decoding utilities (HTTP methods tested in integration)
 
+import { jest } from '@jest/globals';
 import { GatewayClient } from '../../src/gateway/client.js';
-import type { PaymentPayload } from '../../src/gateway/types.js';
+import type { PaymentPayload, CreditBalance } from '../../src/gateway/types.js';
+import { isInsufficientCreditError } from '../../src/gateway/types.js';
 
 describe('GatewayClient', () => {
   let client: GatewayClient;
+  let originalFetch: typeof global.fetch;
+
+  beforeAll(() => {
+    originalFetch = global.fetch;
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
 
   beforeEach(() => {
     client = new GatewayClient('https://test.gateway.com');
@@ -143,5 +154,226 @@ describe('GatewayClient', () => {
       const decoded = client.decodePaymentResponse(encoded);
       expect(decoded).toEqual(payload);
     });
+  });
+
+  describe('getCreditBalance', () => {
+    let mockFetch: jest.Mock;
+
+    beforeEach(() => {
+      mockFetch = jest.fn();
+      global.fetch = mockFetch;
+    });
+
+    it('should return credit balance for valid wallet', async () => {
+      const expectedBalance: CreditBalance = {
+        agentWallet: '0x1234567890123456789012345678901234567890',
+        balance: '10.00',
+        reserved: '2.00',
+        available: '8.00',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(expectedBalance),
+      });
+
+      const result = await client.getCreditBalance('0x1234567890123456789012345678901234567890');
+      expect(result).toEqual(expectedBalance);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://test.gateway.com/api/credits/0x1234567890123456789012345678901234567890'
+      );
+    });
+
+    it('should throw error for 404 response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+      });
+
+      await expect(
+        client.getCreditBalance('0x0000000000000000000000000000000000000000')
+      ).rejects.toThrow('Credit balance not found');
+    });
+
+    it('should throw error for gateway failures', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+      });
+
+      await expect(
+        client.getCreditBalance('0x1234567890123456789012345678901234567890')
+      ).rejects.toThrow('Failed to get credit balance: 500');
+    });
+  });
+
+  describe('confirmDeposit', () => {
+    let mockFetch: jest.Mock;
+
+    beforeEach(() => {
+      mockFetch = jest.fn();
+      global.fetch = mockFetch;
+    });
+
+    it('should confirm deposit with valid parameters', async () => {
+      const expectedBalance: CreditBalance = {
+        agentWallet: '0x1234567890123456789012345678901234567890',
+        balance: '15.00',
+        reserved: '0.00',
+        available: '15.00',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(expectedBalance),
+      });
+
+      const result = await client.confirmDeposit(
+        '0x1234567890123456789012345678901234567890',
+        '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        '5.00'
+      );
+
+      expect(result).toEqual(expectedBalance);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://test.gateway.com/api/credits/confirm-deposit',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agentWallet: '0x1234567890123456789012345678901234567890',
+            txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+            amount: '5.00',
+          }),
+        }
+      );
+    });
+
+    it('should throw error for 400 response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        text: () => Promise.resolve(JSON.stringify({ error: 'Invalid transaction hash' })),
+      });
+
+      await expect(
+        client.confirmDeposit(
+          '0x1234567890123456789012345678901234567890',
+          '0xinvalid',
+          '5.00'
+        )
+      ).rejects.toThrow('Invalid transaction hash');
+    });
+
+    it('should throw error for gateway failures', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve('Internal server error'),
+      });
+
+      await expect(
+        client.confirmDeposit(
+          '0x1234567890123456789012345678901234567890',
+          '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+          '5.00'
+        )
+      ).rejects.toThrow('Internal server error');
+    });
+
+    it('should throw Unknown error when response body is empty', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve(''),
+      });
+
+      await expect(
+        client.confirmDeposit(
+          '0x1234567890123456789012345678901234567890',
+          '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+          '5.00'
+        )
+      ).rejects.toThrow('Unknown error');
+    });
+  });
+});
+
+describe('isInsufficientCreditError', () => {
+  it('should return true for valid insufficient credit error', () => {
+    const error = {
+      error: 'Insufficient credit balance',
+      minimumRequired: '1.00',
+      depositEndpoint: '/api/credits/confirm-deposit',
+    };
+    expect(isInsufficientCreditError(error)).toBe(true);
+  });
+
+  it('should return true with different error message', () => {
+    const error = {
+      error: 'Not enough credits',
+      minimumRequired: '5.50',
+      depositEndpoint: '/api/credits/confirm-deposit',
+    };
+    expect(isInsufficientCreditError(error)).toBe(true);
+  });
+
+  it('should return false for standard x402 PaymentRequirementsResponse', () => {
+    const paymentRequired = {
+      x402Version: 1,
+      accepts: [
+        {
+          scheme: 'exact',
+          network: 'base-mainnet',
+          maxAmountRequired: '1000000',
+          asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          payTo: '0x1234567890123456789012345678901234567890',
+          resource: '/api/data',
+          description: 'Data access',
+          mimeType: 'application/json',
+          outputSchema: null,
+          maxTimeoutSeconds: 60,
+        },
+      ],
+    };
+    expect(isInsufficientCreditError(paymentRequired)).toBe(false);
+  });
+
+  it('should return false for null', () => {
+    expect(isInsufficientCreditError(null)).toBe(false);
+  });
+
+  it('should return false for undefined', () => {
+    expect(isInsufficientCreditError(undefined)).toBe(false);
+  });
+
+  it('should return false for non-object', () => {
+    expect(isInsufficientCreditError('string')).toBe(false);
+    expect(isInsufficientCreditError(123)).toBe(false);
+    expect(isInsufficientCreditError(true)).toBe(false);
+  });
+
+  it('should return false if missing error field', () => {
+    const partial = {
+      minimumRequired: '1.00',
+      depositEndpoint: '/api/credits/confirm-deposit',
+    };
+    expect(isInsufficientCreditError(partial)).toBe(false);
+  });
+
+  it('should return false if missing minimumRequired field', () => {
+    const partial = {
+      error: 'Insufficient credit balance',
+      depositEndpoint: '/api/credits/confirm-deposit',
+    };
+    expect(isInsufficientCreditError(partial)).toBe(false);
+  });
+
+  it('should return false if missing depositEndpoint field', () => {
+    const partial = {
+      error: 'Insufficient credit balance',
+      minimumRequired: '1.00',
+    };
+    expect(isInsufficientCreditError(partial)).toBe(false);
   });
 });

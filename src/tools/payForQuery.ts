@@ -4,6 +4,7 @@
 import type { WalletProvider } from '../wallet/types.js';
 import type { GatewayClient } from '../gateway/client.js';
 import type { PaymentPayload, PaymentRequirement } from '../gateway/types.js';
+import { isInsufficientCreditError } from '../gateway/types.js';
 import { UserRejectedError } from '../wallet/types.js';
 import { buildDomain, buildAuthorizationMessage, buildTypedData } from '../signing/eip712.js';
 import { formatUsdc } from '../utils/usdc.js';
@@ -69,6 +70,15 @@ export async function payForQuery(
       };
     }
 
+    // Check if this is an insufficient credit error (prepaid credits publisher)
+    if (isInsufficientCreditError(initialResult.paymentRequired)) {
+      const creditError = initialResult.paymentRequired;
+      return {
+        success: false,
+        error: `Insufficient credit balance. Minimum required: ${creditError.minimumRequired} USDC. Please deposit funds to continue.`,
+      };
+    }
+
     // Extract payment requirement
     const paymentRequirement = initialResult.paymentRequired.accepts[0];
     if (!paymentRequirement) {
@@ -96,6 +106,14 @@ export async function payForQuery(
       },
       paymentPayload
     );
+
+    // Check if settlement failed (got another 402 after sending payment)
+    if (paidResult.status === 402) {
+      const errorMsg =
+        (paidResult.paymentRequired as { error?: string })?.error ??
+        'Payment settlement failed';
+      return { success: false, error: errorMsg };
+    }
 
     // Extract transaction hash from payment response
     let txHash: string | undefined;
