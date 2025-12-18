@@ -97,6 +97,14 @@ export async function payForQuery(
       paymentPayload
     );
 
+    // Check if settlement failed (got another 402 after sending payment)
+    if (paidResult.status === 402) {
+      const errorMsg =
+        (paidResult.paymentRequired as { error?: string })?.error ??
+        'Payment settlement failed';
+      return { success: false, error: errorMsg };
+    }
+
     // Extract transaction hash from payment response
     let txHash: string | undefined;
     if (paidResult.paymentResponse) {

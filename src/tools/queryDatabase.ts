@@ -93,6 +93,14 @@ export async function queryDatabase(
       paymentPayload
     );
 
+    // Check if settlement failed (got another 402 after sending payment)
+    if (paidResult.status === 402) {
+      const errorMsg =
+        (paidResult.paymentRequired as { error?: string })?.error ??
+        'Payment settlement failed';
+      return { success: false, error: errorMsg };
+    }
+
     if (!paidResult.data) {
       return { success: false, error: 'No data returned from gateway' };
     }
