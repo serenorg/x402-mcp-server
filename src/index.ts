@@ -12,6 +12,7 @@ import { listPublishers } from './tools/listPublishers.js';
 import { getPublisherDetails } from './tools/getPublisherDetails.js';
 import { getPublisherPricingDetails } from './tools/getPublisherPricingDetails.js';
 import { checkCreditBalance } from './tools/checkCreditBalance.js';
+import { depositCredits } from './tools/depositCredits.js';
 import { GatewayClient } from './gateway/client.js';
 import { PrivateKeyWalletProvider } from './wallet/privatekey.js';
 import type { WalletProvider } from './wallet/types.js';
@@ -373,6 +374,67 @@ server.registerTool(
                 balance: result.balance,
                 reserved: result.reserved,
                 available: result.available,
+              }, null, 2),
+            },
+          ],
+        };
+      } else {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: false,
+                error: result.error,
+              }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            }, null, 2),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Register deposit_credits tool
+server.registerTool(
+  'deposit_credits',
+  {
+    description: 'Get instructions for depositing USDC to your prepaid credit balance. Returns the gateway deposit address and step-by-step instructions.',
+    inputSchema: z.object({
+      amount: z.string().describe('Amount of USDC to deposit (e.g., "10.00")'),
+    }),
+  },
+  async (args) => {
+    try {
+      const wallet = await getWalletProvider();
+      const result = await depositCredits(args, wallet, gatewayClient);
+
+      if (result.success) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: true,
+                instructions: result.instructions,
+                steps: result.steps,
+                amount: result.amount,
+                gatewayWallet: result.gatewayWallet,
+                agentWallet: result.agentWallet,
               }, null, 2),
             },
           ],
