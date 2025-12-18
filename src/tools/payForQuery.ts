@@ -4,6 +4,7 @@
 import type { WalletProvider } from '../wallet/types.js';
 import type { GatewayClient } from '../gateway/client.js';
 import type { PaymentPayload, PaymentRequirement } from '../gateway/types.js';
+import { isInsufficientCreditError } from '../gateway/types.js';
 import { UserRejectedError } from '../wallet/types.js';
 import { buildDomain, buildAuthorizationMessage, buildTypedData } from '../signing/eip712.js';
 import { formatUsdc } from '../utils/usdc.js';
@@ -66,6 +67,15 @@ export async function payForQuery(
       return {
         success: true,
         data: initialResult.data,
+      };
+    }
+
+    // Check if this is an insufficient credit error (prepaid credits publisher)
+    if (isInsufficientCreditError(initialResult.paymentRequired)) {
+      const creditError = initialResult.paymentRequired;
+      return {
+        success: false,
+        error: `Insufficient credit balance. Minimum required: ${creditError.minimumRequired} USDC. Please deposit funds to continue.`,
       };
     }
 

@@ -262,4 +262,58 @@ describe('payForQuery', () => {
       expect(firstCall[0].request.method).toBe('GET');
     });
   });
+
+  describe('prepaid credits handling', () => {
+    it('should detect insufficient credit error and return helpful message', async () => {
+      mockGateway.proxyRequest.mockResolvedValueOnce({
+        status: 402,
+        paymentRequired: {
+          error: 'Insufficient credit balance',
+          minimumRequired: '1.00',
+          depositEndpoint: '/api/credits/confirm-deposit',
+        },
+      });
+
+      const result = await payForQuery(validInput, mockWallet, mockGateway);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Insufficient credit');
+      expect(result.error).toContain('1.00');
+      // Should NOT attempt signing
+      expect(mockWallet.signTypedData).not.toHaveBeenCalled();
+    });
+
+    it('should include deposit endpoint in error message', async () => {
+      mockGateway.proxyRequest.mockResolvedValueOnce({
+        status: 402,
+        paymentRequired: {
+          error: 'Not enough credits',
+          minimumRequired: '5.50',
+          depositEndpoint: '/api/credits/confirm-deposit',
+        },
+      });
+
+      const result = await payForQuery(validInput, mockWallet, mockGateway);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('deposit');
+    });
+
+    it('should proceed with standard x402 flow for normal 402 response', async () => {
+      mockGateway.proxyRequest.mockResolvedValueOnce({
+        status: 402,
+        paymentRequired: { x402Version: 1, accepts: [mockPaymentRequirement] },
+      });
+      mockGateway.proxyRequest.mockResolvedValueOnce({
+        status: 200,
+        data: { result: 'success' },
+      });
+
+      const result = await payForQuery(validInput, mockWallet, mockGateway);
+
+      expect(result.success).toBe(true);
+      // Should sign for standard x402
+      expect(mockWallet.signTypedData).toHaveBeenCalled();
+    });
+  });
 });
