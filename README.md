@@ -230,6 +230,8 @@ Executes a paid API query with automatic USDC payment. Use this for `api` type p
 }
 ```
 
+When a zero-price gateway publisher forwards an upstream x402 requirement, the tool now detects `upstreamPaymentRequired` in the 402 payload, signs both the platform fee and upstream authorization, and resends the request with `X-PAYMENT` (gateway) plus `X-PAYMENT-UPSTREAM` (forwarded upstream payload). No manual header wiring is required.
+
 ### `query_database`
 
 Executes a paid SQL query against a database publisher with automatic USDC payment. Use this for `database` type publishers.

@@ -25,10 +25,18 @@ export interface PaymentRequirement {
   };
 }
 
+export interface GatewaySettlement {
+  payer: string;
+  transaction: string;
+  network: string;
+}
+
 export interface PaymentRequirementsResponse {
   x402Version: number;
   error?: string;
   accepts: PaymentRequirement[];
+  upstreamPaymentRequired?: boolean;
+  gatewaySettlement?: GatewaySettlement;
 }
 
 export interface PaymentPayload {

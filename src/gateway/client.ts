@@ -13,6 +13,13 @@ import type {
   CreditBalance,
 } from './types.js';
 
+type PaymentHeaderOptions = {
+  gateway?: PaymentPayload;
+  upstream?: PaymentPayload;
+};
+
+type PaymentHeaderInput = PaymentPayload | PaymentHeaderOptions;
+
 export class GatewayClient {
   private baseUrl: string;
 
@@ -95,7 +102,7 @@ export class GatewayClient {
    */
   async proxyRequest(
     request: ProxyRequest,
-    paymentPayload?: PaymentPayload
+    payment?: PaymentHeaderInput
   ): Promise<{
     status: number;
     data?: unknown;
@@ -106,8 +113,12 @@ export class GatewayClient {
       'Content-Type': 'application/json',
     };
 
-    if (paymentPayload) {
-      headers['X-PAYMENT'] = this.encodePaymentPayload(paymentPayload);
+    const paymentHeaders = normalizePaymentHeaders(payment);
+    if (paymentHeaders.gateway) {
+      headers['X-PAYMENT'] = this.encodePaymentPayload(paymentHeaders.gateway);
+    }
+    if (paymentHeaders.upstream) {
+      headers['X-PAYMENT-UPSTREAM'] = this.encodePaymentPayload(paymentHeaders.upstream);
     }
 
     const url = `${this.baseUrl}/api/proxy`;
@@ -149,7 +160,7 @@ export class GatewayClient {
    */
   async queryDatabase(
     request: QueryRequest,
-    paymentPayload?: PaymentPayload
+    payment?: PaymentHeaderInput
   ): Promise<{
     status: number;
     data?: QueryResult;
@@ -160,8 +171,12 @@ export class GatewayClient {
       'Content-Type': 'application/json',
     };
 
-    if (paymentPayload) {
-      headers['X-PAYMENT'] = this.encodePaymentPayload(paymentPayload);
+    const paymentHeaders = normalizePaymentHeaders(payment);
+    if (paymentHeaders.gateway) {
+      headers['X-PAYMENT'] = this.encodePaymentPayload(paymentHeaders.gateway);
+    }
+    if (paymentHeaders.upstream) {
+      headers['X-PAYMENT-UPSTREAM'] = this.encodePaymentPayload(paymentHeaders.upstream);
     }
 
     const url = `${this.baseUrl}/api/query`;
@@ -314,3 +329,15 @@ export class GatewayClient {
 
 // Singleton instance
 export const gatewayClient = new GatewayClient();
+
+function normalizePaymentHeaders(payment?: PaymentHeaderInput): PaymentHeaderOptions {
+  if (!payment) {
+    return {};
+  }
+
+  if ('x402Version' in payment) {
+    return { gateway: payment as PaymentPayload };
+  }
+
+  return payment;
+}
