@@ -11,6 +11,9 @@ import { queryDatabase } from './tools/queryDatabase.js';
 import { listPublishers } from './tools/listPublishers.js';
 import { getPublisherDetails } from './tools/getPublisherDetails.js';
 import { getPublisherPricingDetails } from './tools/getPublisherPricingDetails.js';
+import { checkCreditBalance } from './tools/checkCreditBalance.js';
+import { depositCredits } from './tools/depositCredits.js';
+import { confirmDeposit } from './tools/confirmDeposit.js';
 import { GatewayClient } from './gateway/client.js';
 import { PrivateKeyWalletProvider } from './wallet/privatekey.js';
 import type { WalletProvider } from './wallet/types.js';
@@ -361,6 +364,184 @@ server.registerTool(
               text: JSON.stringify({
                 success: true,
                 pricing: result.pricing,
+              }, null, 2),
+            },
+          ],
+        };
+      } else {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: false,
+                error: result.error,
+              }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            }, null, 2),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Register check_credit_balance tool
+server.registerTool(
+  'check_credit_balance',
+  {
+    description: 'Check your prepaid credit balance. Returns current balance, reserved amount, and available funds.',
+    inputSchema: z.object({}),
+  },
+  async () => {
+    try {
+      const wallet = await getWalletProvider();
+      const result = await checkCreditBalance(wallet, gatewayClient);
+
+      if (result.success) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: true,
+                wallet: result.wallet,
+                balance: result.balance,
+                reserved: result.reserved,
+                available: result.available,
+              }, null, 2),
+            },
+          ],
+        };
+      } else {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: false,
+                error: result.error,
+              }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            }, null, 2),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Register deposit_credits tool
+server.registerTool(
+  'deposit_credits',
+  {
+    description: 'Deposit USDC to your prepaid credit balance via x402 payment flow. Signs and submits the payment automatically.',
+    inputSchema: z.object({
+      amount: z.string().describe('Amount of USDC to deposit (e.g., "10.00")'),
+    }),
+  },
+  async (args) => {
+    try {
+      const wallet = await getWalletProvider();
+      const result = await depositCredits(args, wallet, gatewayClient);
+
+      if (result.success) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: true,
+                deposited: result.deposited,
+                balance: result.balance,
+                txHash: result.txHash,
+              }, null, 2),
+            },
+          ],
+        };
+      } else {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: false,
+                error: result.error,
+              }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            }, null, 2),
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+);
+
+// Register confirm_deposit tool
+server.registerTool(
+  'confirm_deposit',
+  {
+    description: 'Confirm a USDC deposit and credit your prepaid balance. Call this after sending USDC to the gateway deposit address with your transaction hash.',
+    inputSchema: z.object({
+      txHash: z.string().describe('The transaction hash of your USDC transfer (0x followed by 64 hex characters)'),
+      amount: z.string().describe('Amount of USDC deposited (e.g., "10.00")'),
+    }),
+  },
+  async (args) => {
+    try {
+      const wallet = await getWalletProvider();
+      const result = await confirmDeposit(args, wallet, gatewayClient);
+
+      if (result.success) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({
+                success: true,
+                wallet: result.wallet,
+                balance: result.balance,
+                reserved: result.reserved,
+                available: result.available,
               }, null, 2),
             },
           ],

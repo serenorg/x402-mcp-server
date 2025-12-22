@@ -2,6 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@serendb/x402-mcp-server.svg)](https://www.npmjs.com/package/@serendb/x402-mcp-server)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![SPONSORED BY DAYTONA STARTUP GRID](https://img.shields.io/badge/SPONSORED%20BY-DAYTONA%20STARTUP%20GRID-2ECC71?style=for-the-badge)](https://daytona.io/startups?utm_source=serendb.com)
 
 MCP server enabling AI agents to pay for x402-protected database queries and API calls using USDC on Base.
 

@@ -1,40 +1,34 @@
-// ABOUTME: MCP tool for executing paid SQL queries against database publishers
-// ABOUTME: Handles the full payment flow: 402 response -> sign -> retry
+// ABOUTME: MCP tool to deposit USDC to prepaid credit balance via x402 payment flow
+// ABOUTME: Handles full payment flow: 402 response -> sign -> settle -> credit balance
 
-import type { WalletProvider } from '../wallet/types.js';
 import type { GatewayClient } from '../gateway/client.js';
-import type { PaymentPayload, PaymentRequirement, QueryResult } from '../gateway/types.js';
-import { isInsufficientCreditError } from '../gateway/types.js';
+import type { WalletProvider } from '../wallet/types.js';
+import type { PaymentPayload, PaymentRequirement, CreditBalance } from '../gateway/types.js';
 import { UserRejectedError } from '../wallet/types.js';
 import { buildDomain, buildAuthorizationMessage, buildTypedData } from '../signing/eip712.js';
-import { formatUsdc } from '../utils/usdc.js';
 
-export interface QueryDatabaseInput {
-  publisher_id: string;
-  sql: string;
+export interface DepositCreditsInput {
+  amount: string;
 }
 
-export interface QueryDatabaseOutput {
+export interface DepositCreditsOutput {
   success: boolean;
-  rows?: unknown[];
-  rowCount?: number;
-  estimatedCost?: string;
-  actualCost?: string;
-  executionTime?: number;
+  deposited?: string;
+  balance?: CreditBalance;
   txHash?: string;
   error?: string;
 }
 
 /**
- * Execute a paid SQL query against a database publisher
+ * Deposit USDC to prepaid credit balance via x402 payment flow
  */
-export async function queryDatabase(
-  input: QueryDatabaseInput,
+export async function depositCredits(
+  input: DepositCreditsInput,
   wallet: WalletProvider,
   gateway: GatewayClient
-): Promise<QueryDatabaseOutput> {
-  // Validate input
-  const validationError = validateInput(input);
+): Promise<DepositCreditsOutput> {
+  // Validate amount
+  const validationError = validateAmount(input.amount);
   if (validationError) {
     return { success: false, error: validationError };
   }
@@ -49,35 +43,20 @@ export async function queryDatabase(
     const agentWallet = await wallet.getAddress();
 
     // Make initial request to get payment requirements
-    const initialResult = await gateway.queryDatabase({
-      publisherId: input.publisher_id,
-      agentWallet,
-      sql: input.sql,
-    });
+    const initialResult = await gateway.depositCredits(input.amount);
 
-    // If not 402, something unexpected or no payment needed
+    // If not 402, something unexpected happened
     if (initialResult.status !== 402 || !initialResult.paymentRequired) {
-      // This shouldn't happen for database queries, but handle it
+      // Already succeeded without payment (shouldn't happen)
       if (initialResult.data) {
         return {
           success: true,
-          rows: initialResult.data.rows,
-          rowCount: initialResult.data.rowCount,
-          estimatedCost: initialResult.data.estimatedCost,
-          actualCost: initialResult.data.actualCost,
-          executionTime: initialResult.data.executionTime,
+          deposited: initialResult.data.deposited,
+          balance: initialResult.data.balance,
+          txHash: initialResult.data.transaction,
         };
       }
       return { success: false, error: 'Unexpected response from gateway' };
-    }
-
-    // Check if this is an insufficient credit error (prepaid credits publisher)
-    if (isInsufficientCreditError(initialResult.paymentRequired)) {
-      const creditError = initialResult.paymentRequired;
-      return {
-        success: false,
-        error: `Insufficient credit balance. Minimum required: ${creditError.minimumRequired} USDC. Please deposit funds to continue.`,
-      };
     }
 
     // Extract payment requirement
@@ -94,14 +73,7 @@ export async function queryDatabase(
     );
 
     // Retry request with payment
-    const paidResult = await gateway.queryDatabase(
-      {
-        publisherId: input.publisher_id,
-        agentWallet,
-        sql: input.sql,
-      },
-      paymentPayload
-    );
+    const paidResult = await gateway.depositCredits(input.amount, paymentPayload);
 
     // Check if settlement failed (got another 402 after sending payment)
     if (paidResult.status === 402) {
@@ -112,28 +84,14 @@ export async function queryDatabase(
     }
 
     if (!paidResult.data) {
-      return { success: false, error: 'No data returned from gateway' };
-    }
-
-    // Extract transaction hash from settlement or payment response
-    let txHash: string | undefined;
-    if (paidResult.data.settlement?.transaction) {
-      txHash = paidResult.data.settlement.transaction;
-    } else if (paidResult.paymentResponse) {
-      const paymentResponse = gateway.decodePaymentResponse(paidResult.paymentResponse) as {
-        transaction?: string;
-      };
-      txHash = paymentResponse.transaction;
+      return { success: false, error: 'Deposit failed: no response data' };
     }
 
     return {
       success: true,
-      rows: paidResult.data.rows,
-      rowCount: paidResult.data.rowCount,
-      estimatedCost: paidResult.data.estimatedCost,
-      actualCost: paidResult.data.actualCost,
-      executionTime: paidResult.data.executionTime,
-      txHash,
+      deposited: paidResult.data.deposited,
+      balance: paidResult.data.balance,
+      txHash: paidResult.data.transaction,
     };
   } catch (error) {
     if (error instanceof UserRejectedError) {
@@ -146,18 +104,19 @@ export async function queryDatabase(
   }
 }
 
-function validateInput(input: QueryDatabaseInput): string | null {
-  if (!input.publisher_id) {
-    return 'publisher_id is required';
+function validateAmount(amount: string): string | null {
+  if (!amount) {
+    return 'amount is required';
   }
-  if (!input.sql) {
-    return 'sql is required';
+
+  const numAmount = parseFloat(amount);
+  if (isNaN(numAmount)) {
+    return 'amount must be a valid number';
   }
-  // Basic SQL validation - must start with SELECT
-  const trimmedSql = input.sql.trim().toUpperCase();
-  if (!trimmedSql.startsWith('SELECT')) {
-    return 'Only SELECT queries are allowed';
+  if (numAmount <= 0) {
+    return 'amount must be greater than zero';
   }
+
   return null;
 }
 
