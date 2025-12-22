@@ -79,20 +79,44 @@ export async function payForQuery(
       };
     }
 
-    // Extract payment requirement
-    const paymentRequirement = initialResult.paymentRequired.accepts[0];
-    if (!paymentRequirement) {
-      return { success: false, error: 'No payment method available' };
+    const accepts = initialResult.paymentRequired.accepts ?? [];
+    if (accepts.length === 0) {
+      return { success: false, error: 'No payment methods available' };
     }
 
-    // Build and sign the payment authorization
-    const paymentPayload = await buildPaymentPayload(
-      paymentRequirement,
+    const [gatewayRequirement, ...otherRequirements] = accepts;
+    if (!gatewayRequirement) {
+      return { success: false, error: 'Gateway payment requirement missing' };
+    }
+
+    let upstreamRequirement: PaymentRequirement | undefined;
+    if (initialResult.paymentRequired.upstreamPaymentRequired) {
+      upstreamRequirement = otherRequirements[0];
+      if (!upstreamRequirement) {
+        return {
+          success: false,
+          error: 'Upstream payment requirement missing from gateway response',
+        };
+      }
+    }
+
+    // Build and sign the payment authorization(s)
+    const gatewayPaymentPayload = await buildPaymentPayload(
+      gatewayRequirement,
       agentWallet,
       wallet
     );
 
-    // Retry request with payment
+    let upstreamPaymentPayload: PaymentPayload | undefined;
+    if (upstreamRequirement) {
+      upstreamPaymentPayload = await buildPaymentPayload(
+        upstreamRequirement,
+        agentWallet,
+        wallet
+      );
+    }
+
+    // Retry request with payment(s)
     const paidResult = await gateway.proxyRequest(
       {
         publisherId: input.publisher_id,
@@ -104,7 +128,10 @@ export async function payForQuery(
           headers: input.request.headers,
         },
       },
-      paymentPayload
+      {
+        gateway: gatewayPaymentPayload,
+        upstream: upstreamPaymentPayload,
+      }
     );
 
     // Check if settlement failed (got another 402 after sending payment)
@@ -124,10 +151,15 @@ export async function payForQuery(
       txHash = paymentResponse.txHash;
     }
 
+    const totalCostAtomic = [gatewayRequirement, upstreamRequirement]
+      .filter((requirement): requirement is PaymentRequirement => Boolean(requirement))
+      .reduce<bigint>((sum, requirement) => sum + BigInt(requirement.maxAmountRequired), 0n)
+      .toString();
+
     return {
       success: true,
       data: paidResult.data,
-      cost: formatUsdc(paymentRequirement.maxAmountRequired),
+      cost: formatUsdc(totalCostAtomic),
       txHash,
     };
   } catch (error) {
